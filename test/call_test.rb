@@ -5,7 +5,7 @@ class CallTest < Minitest::Spec
     class Create < Trailblazer::Operation
       step ->(*) { true }
       def inspect
-        "#{@skills.inspect}"
+        @skills.inspect.to_s
       end
     end
 
@@ -41,7 +41,5 @@ class CallTest < Minitest::Spec
       result.event.must_be_instance_of Trailblazer::Operation::Railway::End::Failure
       result.event.must_equal Update.outputs[:failure].signal
     end
-
   end
 end
-

@@ -28,7 +28,7 @@ module Test
 
   # builder for PlusPoles
   def self.plus_poles_for(mapping)
-    ary = mapping.collect { |evt, semantic| [Trailblazer:: Activity::Output(evt, semantic), semantic ] }
+    ary = mapping.map { |evt, semantic| [Trailblazer:: Activity::Output(evt, semantic), semantic] }
 
     Trailblazer::Activity::Magnetic::DSL::PlusPoles.new.merge(::Hash[ary])
   end

@@ -3,9 +3,9 @@ require "test_helper"
 require "trailblazer/operation/inject" # an optional feature.com.
 
 class TaskWrapTest < Minitest::Spec
-  MyMacro = ->( (options, *args), *) do
+  MyMacro = lambda do |(options, *args), *|
     options["MyMacro.contract"] = options[:contract]
-    [ Trailblazer::Activity::Right, [options, *args] ]
+    [Trailblazer::Activity::Right, [options, *args]]
   end
 
   class Create < Trailblazer::Operation
@@ -17,13 +17,13 @@ class TaskWrapTest < Minitest::Spec
 
       Trailblazer::Activity::DSL::Extension.new(
         Trailblazer::Activity::TaskWrap::Merge.new(
-          Module.new do
+          Module.new {
             extend Trailblazer::Activity::Path::Plan()
 
-            task Trailblazer::Operation::Wrap::Inject::ReverseMergeDefaults.new( contract: "MyDefaultContract" ),
-              id:     "inject.my_default",
-              before: "task_wrap.call_task"
-          end
+            task Trailblazer::Operation::Wrap::Inject::ReverseMergeDefaults.new(contract: "MyDefaultContract"),
+                 id:     "inject.my_default",
+                 before: "task_wrap.call_task"
+          }
         )
       ) => true
     )
@@ -37,39 +37,39 @@ class TaskWrapTest < Minitest::Spec
   # it { Create.call("adsf", options={}, {}).inspect("MyMacro.contract", "options.contract").must_equal %{} }
 
   def inspect_hash(hash, *keys)
-    Hash[ keys.collect { |key| [key, hash[key]] } ].inspect
+    Hash[keys.map { |key| [key, hash[key]] }].inspect
   end
 
   #-
   # default gets set by Injection.
   it do
-    result = Create.call( {} )
+    result = Create.call({})
 
-    inspect_hash(result, "options.contract", :contract, "MyMacro.contract").
-      must_equal %{{"options.contract"=>nil, :contract=>"MyDefaultContract", "MyMacro.contract"=>"MyDefaultContract"}}
+    inspect_hash(result, "options.contract", :contract, "MyMacro.contract")
+      .must_equal %{{"options.contract"=>nil, :contract=>"MyDefaultContract", "MyMacro.contract"=>"MyDefaultContract"}}
   end
 
   # injected from outside, Injection skips.
   it do
-    result = Create.call( { :contract=>"MyExternalContract" } )
+    result = Create.call(contract: "MyExternalContract")
 
-    inspect_hash(result, "options.contract", :contract, "MyMacro.contract").
-      must_equal %{{"options.contract"=>"MyExternalContract", :contract=>"MyExternalContract", "MyMacro.contract"=>"MyExternalContract"}}
+    inspect_hash(result, "options.contract", :contract, "MyMacro.contract")
+      .must_equal %{{"options.contract"=>"MyExternalContract", :contract=>"MyExternalContract", "MyMacro.contract"=>"MyExternalContract"}}
   end
 
   #- Nested task_wraps should not override the outer.
-  AnotherMacro = ->( (options, *args), *) do
+  AnotherMacro = lambda do |(options, *args), *|
     options["AnotherMacro.another_contract"] = options[:another_contract]
-    [ Trailblazer::Activity::Right, [options, *args] ]
+    [Trailblazer::Activity::Right, [options, *args]]
   end
 
   class Update < Trailblazer::Operation
     step(
-      task: ->( (options, *args), circuit_options ) {
-          _d, *o = Create.call( [ options, *args ], circuit_options )
+      task: lambda { |(options, *args), circuit_options|
+              _d, *o = Create.call([options, *args], circuit_options)
 
-          [ Trailblazer::Activity::Right, *o ]
-        },
+              [Trailblazer::Activity::Right, *o]
+            },
       id: "Create"
     )
     step(
@@ -77,21 +77,22 @@ class TaskWrapTest < Minitest::Spec
       id:             "AnotherMacro",
       Trailblazer::Activity::DSL::Extension.new(
         Trailblazer::Activity::TaskWrap::Merge.new(
-          Module.new do
+          Module.new {
             extend Trailblazer::Activity::Path::Plan()
 
-            task Trailblazer::Operation::Wrap::Inject::ReverseMergeDefaults.new( another_contract: "AnotherDefaultContract" ), id: "inject.my_default",
-            before: "task_wrap.call_task"
-          end
+            task Trailblazer::Operation::Wrap::Inject::ReverseMergeDefaults.new(another_contract: "AnotherDefaultContract"),
+                 id: "inject.my_default",
+                 before: "task_wrap.call_task"
+          }
         )
-      ) => true,
+      ) => true
     )
   end
 
   it do
-    result = Update.call( {} )
+    result = Update.call({})
 
-    inspect_hash(result, "options.contract", :contract, "MyMacro.contract", "AnotherMacro.another_contract").
-      must_equal %{{"options.contract"=>nil, :contract=>"MyDefaultContract", "MyMacro.contract"=>"MyDefaultContract", "AnotherMacro.another_contract"=>"AnotherDefaultContract"}}
+    inspect_hash(result, "options.contract", :contract, "MyMacro.contract", "AnotherMacro.another_contract")
+      .must_equal %{{"options.contract"=>nil, :contract=>"MyDefaultContract", "MyMacro.contract"=>"MyDefaultContract", "AnotherMacro.another_contract"=>"AnotherDefaultContract"}}
   end
 end

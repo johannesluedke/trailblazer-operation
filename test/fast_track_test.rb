@@ -24,8 +24,8 @@ class FastTrackTest < Minitest::Spec
     fail ->(options, **) { options["b"] = true }
     step ->(options, **) { options["y"] = true }
   end
-  it { Retrieve.("dont_fail" => true  ).inspect("x", "b", "y").must_equal %{<Result:true [true, nil, nil] >} }
-  it { Retrieve.("dont_fail" => false ).inspect("x", "b", "y").must_equal %{<Result:true [false, nil, nil] >} }
+  it { Retrieve.("dont_fail" => true).inspect("x", "b", "y").must_equal %{<Result:true [true, nil, nil] >} }
+  it { Retrieve.("dont_fail" => false).inspect("x", "b", "y").must_equal %{<Result:true [false, nil, nil] >} }
 
   # #step fails fast if option set and returns false.
   class Update < Trailblazer::Operation
@@ -36,7 +36,7 @@ class FastTrackTest < Minitest::Spec
   end
 
   it { Update.("dont_fail" => true).inspect("x", "a", "b", "y").must_equal %{<Result:true [true, true, nil, true] >} }
-  it { Update.({}                     ).inspect("x", "a", "b", "y").must_equal %{<Result:false [true, nil, nil, nil] >} }
+  it { Update.({}).inspect("x", "a", "b", "y").must_equal %{<Result:false [true, nil, nil, nil] >} }
 
   # #step passes fast if option set and returns true.
   class Delete < Trailblazer::Operation
@@ -47,7 +47,7 @@ class FastTrackTest < Minitest::Spec
   end
 
   it { Delete.("dont_fail" => true).inspect("x", "a", "b", "y").must_equal %{<Result:true [true, true, nil, nil] >} }
-  it { Delete.({}                     ).inspect("x", "a", "b", "y").must_equal %{<Result:false [true, nil, true, nil] >} }
+  it { Delete.({}).inspect("x", "a", "b", "y").must_equal %{<Result:false [true, nil, true, nil] >} }
 end
 
 class FailBangTest < Minitest::Spec
@@ -115,7 +115,7 @@ class NestedFastTrackTest < Minitest::Spec
 
   module Steps
     def b(options, a:, **)
-      options["b"] = a+1
+      options["b"] = a + 1
     end
 
     def f(options, **)
@@ -126,8 +126,8 @@ class NestedFastTrackTest < Minitest::Spec
   describe "Nested, fast_track: true and all its outputs given" do
     let(:update) do
       Class.new(Trailblazer::Operation) do
-        step task: Trailblazer::Operation::Callable( Edit, call: :call_with_circuit_interface ), id: "Callable/",
-          outputs: Edit.outputs ,
+        step task: Trailblazer::Operation::Callable(Edit, call: :call_with_circuit_interface), id: "Callable/",
+          outputs: Edit.outputs,
           fast_track: true
         step :b
         fail :f
@@ -151,8 +151,8 @@ class NestedFastTrackTest < Minitest::Spec
       Class.new(Trailblazer::Operation) do
         include Steps
 
-        step task: Trailblazer::Operation::Callable( Edit, call: :call_with_circuit_interface ), id: "Callable/",
-          outputs: Edit.outputs  # all outputs given means it "works"
+        step task: Trailblazer::Operation::Callable(Edit, call: :call_with_circuit_interface), id: "Callable/",
+          outputs: Edit.outputs # all outputs given means it "works"
         step :b
         fail :f
       end
@@ -173,9 +173,13 @@ class NestedFastTrackTest < Minitest::Spec
       Class.new(Trailblazer::Operation) do
         include Steps
 
-        step({task: Trailblazer::Operation::Callable( Edit, call: :call_with_circuit_interface ), id: "Callable/",
-                  outputs: Edit.outputs },
-          {Output(:pass_fast) => Track(:success), Output(:fail_fast) => Track(:failure)} )# manually rewire the fast-track outputs to "conventional" railway ends.
+        step(
+          {
+            task:    Trailblazer::Operation::Callable(Edit, call: :call_with_circuit_interface), id: "Callable/",
+            outputs: Edit.outputs
+          },
+          Output(:pass_fast) => Track(:success), Output(:fail_fast) => Track(:failure)
+        ) # manually rewire the fast-track outputs to "conventional" railway ends.
 
         step :b
         fail :f
@@ -183,7 +187,7 @@ class NestedFastTrackTest < Minitest::Spec
     end
 
     # it { puts Trailblazer::Activity::Introspect.Cct(update.instance_variable_get(:@process)) }
-    it { update.to_h  }
+    it { update.to_h }
     # Edit returns End.success
     it { update.(edit_return: true).inspect("a", "b", "f").must_equal %{<Result:true [1, 2, nil] >} }
     # Edit returns End.failure
@@ -194,4 +198,3 @@ class NestedFastTrackTest < Minitest::Spec
     it { update.(edit_return: Trailblazer::Operation::Railway.fail_fast!).inspect("a", "b", "f").must_equal %{<Result:false [1, nil, 3] >} }
   end
 end
-
